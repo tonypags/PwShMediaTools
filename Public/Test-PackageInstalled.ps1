@@ -8,7 +8,7 @@ function Test-PackageInstalled {
         $Package
     )
 
-    $verSBlock = {[regex]::Match($resp,'([\d\.]+)').Groups[1].Value}
+    $verSBlock = {param($str=$resp)[regex]::Match($str,'([\d\.]+)').Groups[1].Value}
 
     foreach ($app in $Package) {
 
@@ -22,7 +22,8 @@ function Test-PackageInstalled {
                 [PSCustomObject]@{
                     Package   = 'homebrew'
                     Installed = ( -not [string]::IsNullOrWhiteSpace($resp) )
-                    Version = [version]($resp -replace '^HOMEBREW_VERSION:\s')
+                    Version = [version](Invoke-Command $verSBlock -arg $resp)
+                    #[version]($resp -replace '^HOMEBREW_VERSION:\s')
                 }
  
             }
@@ -34,9 +35,11 @@ function Test-PackageInstalled {
                 [PSCustomObject]@{
                     Package   = 'apt'
                     Installed = ( -not [string]::IsNullOrWhiteSpace($resp) )
-                    Version = [version](
-                        $resp -replace '^apt\s' -replace '/s\(.+\)$'
-                    )
+                    Version = [version](Invoke-Command $verSBlock -arg $resp)
+                    #[version]($resp -replace '^HOMEBREW_VERSION:\s')
+                    # [version](
+                    #     $resp verSBlock -replace '^apt\s' -replace '\s[\s\(\)\w\d]$'
+                    # )
                 }
                 
             }
@@ -72,7 +75,7 @@ function Test-PackageInstalled {
                     [PSCustomObject]@{
                         Package   = $app.ToLower()
                         Installed = ( -not [string]::IsNullOrWhiteSpace($resp) )
-                        Version = [version](Invoke-Command $verSBlock)
+                        Version = [version](Invoke-Command $verSBlock -arg $resp)
                     }
 
                 } elseif ($IsLinux) {
@@ -93,7 +96,7 @@ function Test-PackageInstalled {
                     [PSCustomObject]@{
                         Package   = $app.ToLower()
                         Installed = ( [string]::IsNullOrWhiteSpace($resp) )
-                        Version = [version](Invoke-Command $verSBlock)
+                        Version = [version](Invoke-Command $verSBlock -arg $resp)
                     }
                     
                 } else {
