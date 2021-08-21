@@ -59,7 +59,15 @@ function Test-PackageInstalled {
 
                 if ($IsMacOS) {
 
-                    $resp = (  brew list ( $app.ToLower() )  )
+                    $hasBrew = Test-PackageInstalled -Package 'brew' |
+                        Sort-Object -Property Version -Descending |
+                        Select-Object -First 1
+
+                    $resp = if ($hasBrew.Installed) {
+                        brew list ( $app.ToLower() )
+                    } else {
+                        throw "Homebrew package manager is not installed!"
+                    }
 
                     [PSCustomObject]@{
                         Package   = $app.ToLower()
@@ -71,6 +79,7 @@ function Test-PackageInstalled {
 
                     $aptORyum = Test-PackageInstalled -Package 'apt','yum' |
                         Where-Object {$_.Installed} |
+                        Sort-Object -Property Version -Descending |
                         Select-Object -ExpandProperty 'Package' -First 1
 
                     $resp = if ($aptORyum -eq 'apt') {
