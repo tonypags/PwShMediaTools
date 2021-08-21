@@ -64,7 +64,7 @@ function Test-PackageInstalled {
                     [PSCustomObject]@{
                         Package   = $app.ToLower()
                         Installed = ( -not [string]::IsNullOrWhiteSpace($resp) )
-                        Version = [version]($verSBlock)
+                        Version = [version](Invoke-Command $verSBlock)
                     }
 
                 } elseif ($IsLinux) {
@@ -84,7 +84,7 @@ function Test-PackageInstalled {
                     [PSCustomObject]@{
                         Package   = $app.ToLower()
                         Installed = ( [string]::IsNullOrWhiteSpace($resp) )
-                        Version = [version]($verSBlock)
+                        Version = [version](Invoke-Command $verSBlock)
                     }
                     
                 } else {
