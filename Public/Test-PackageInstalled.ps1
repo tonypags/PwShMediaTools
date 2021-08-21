@@ -77,7 +77,7 @@ function Test-PackageInstalled {
 
                 if ($IsMacOS) {
 
-                    $hasBrew = Test-PackageInstalled -Package 'brew' |
+                    $hasBrew = Test-PackageInstalled -Package 'brew' -ea 0 |
                         Sort-Object -Property Version -Descending |
                         Select-Object -First 1
 
@@ -99,7 +99,7 @@ function Test-PackageInstalled {
 
                 } elseif ($IsLinux) {
 
-                    $aptORyum = Test-PackageInstalled -Package 'apt','yum' |
+                    $aptORyum = Test-PackageInstalled -Package 'apt','yum' -ea 0 |
                         Where-Object {$_.Installed} |
                         Sort-Object -Property Version -Descending |
                         Select-Object -ExpandProperty 'Package' -First 1
