@@ -3,9 +3,12 @@ function Test-PackageInstalled {
     param (
         # Name of the package to check if installed
         [Parameter(Mandatory, Position=0)]
+        [ValidateScript({$_ -notmatch '\s'})]
         [string[]]
         $Package
     )
+
+    $verSBlock = {[regex]::Match($resp,'([\d\.]+)').Groups[1].Value}
 
     foreach ($app in $Package) {
 
@@ -15,13 +18,11 @@ function Test-PackageInstalled {
 
             '^brew$|^homebrew$'  {
 
+                $resp = (brew config) -like 'HOMEBREW_VERSION*'
                 [PSCustomObject]@{
                     Package   = 'homebrew'
-                    Installed = [bool]((brew config) -like 'HOMEBREW_VERSION*')
-                    Version = [version](
-                        ((brew config) -like 'HOMEBREW_VERSION*') -replace '^HOMEBREW_VERSION:\s'
-                    )
-
+                    Installed = ( -not [string]::IsNullOrWhiteSpace($resp) )
+                    Version = [version]($resp -replace '^HOMEBREW_VERSION:\s')
                 }
  
             }
@@ -32,7 +33,7 @@ function Test-PackageInstalled {
 
                 [PSCustomObject]@{
                     Package   = 'apt'
-                    Installed = (-not [string]::IsNullOrWhiteSpace($resp))
+                    Installed = ( -not [string]::IsNullOrWhiteSpace($resp) )
                     Version = [version](
                         $resp -replace '^apt\s' -replace '/s\(.+\)$'
                     )
@@ -46,7 +47,7 @@ function Test-PackageInstalled {
 
                 [PSCustomObject]@{
                     Package   = 'yum'
-                    Installed = (-not [string]::IsNullOrWhiteSpace($resp))
+                    Installed = ( -not [string]::IsNullOrWhiteSpace($resp) )
                     Version = [version]$resp
                 }
 
@@ -57,37 +58,33 @@ function Test-PackageInstalled {
             Default {
 
                 if ($IsMacOS) {
+
+                    $resp = (  brew list ( $app.ToLower() )  )
+
                     [PSCustomObject]@{
                         Package   = $app.ToLower()
-                        Installed = ((brew list) -contains ($app.ToLower()))
-                        Version = [version]([regex]::Match(
-                            (  brew list ( $app.ToLower() )  ), '([\d\.]+)'
-                        ).Groups[1].Value)
+                        Installed = ( -not [string]::IsNullOrWhiteSpace($resp) )
+                        Version = [version]($verSBlock)
                     }
+
                 } elseif ($IsLinux) {
 
                     $aptORyum = Test-PackageInstalled -Package 'apt','yum' |
                         Where-Object {$_.Installed} |
-                        Select-Object -ExpandProperty 'Package'
+                        Select-Object -ExpandProperty 'Package' -First 1
 
                     $resp = if ($aptORyum -eq 'apt') {
-
+                        dpkg -l ($app.ToLower()) | grep ($app.ToLower())
                     } elseif ($aptORyum -eq 'yum') {
-
+                        ( yum list ($app.ToLower()) )[-1]
                     } else {
                         throw "Unhandled package manager: $($app)"
                     }
-                    
+
                     [PSCustomObject]@{
                         Package   = $app.ToLower()
-                        Installed = (
-                            [string]::IsNullOrWhiteSpace(
-                                ((apt list | grep ^ffmpeg) -match ($app.ToLower()))
-                            )
-                        )
-                        Version = [version](
-                            (apt --version) -replace '^apt\s' -replace '/s\(.+\)$'
-                        )
+                        Installed = ( [string]::IsNullOrWhiteSpace($resp) )
+                        Version = [version]($verSBlock)
                     }
                     
                 } else {
