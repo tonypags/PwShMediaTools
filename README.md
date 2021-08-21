@@ -7,21 +7,44 @@ Tools for processing media files and their details.
 # Getting Started
 1.	Installation process 
 
-    Access to the repository required:
+    Clone directly from Git:
 
-        ```
-        $repo = 'PsGallery' # Private internal repo is preferred
-        Install-Module -Name PwShMediaTools -Repository $repo
-        ```
-
-    Without Repository available, clone directly from Git:
-
-        ```
-        $uri = 'ff'.Trim()
-        $ModuleParent = $env:PSModulePath -split ';' | Where {$_ -like "*$($env:USERNAME)*"} | Select -First 1
+        $uri = 'https://github.com/tonypags/PwShMediaTools.git'
+        $ModuleParent = $env:PSModulePath -split ';|:' | Where {$_ -like "*$($env:USERNAME)*"} | Select -First 1
         Set-Location $ModuleParent
         git clone $uri
-        ```
+
+
+    You need to have a supported package manager (apt or yum on Linux, or homebrew on your Mac).
+
+        # For Mac
+        brew install mediainfo
+
+        # for debian/ubuntu
+        apt-get install mediainfo -y
+
+        # for CentOS/RHEL
+        yum install mediainfo
+
+
+    Then you have to load the module
+
+        # go to modules path in user scope
+        cd ($env:PSModulePath -split ':|;|,')[0]
+
+        # Clone my repo
+        git clone git@github.com:tonypags/PwShMediaTools.git
+        # or
+        git clone https://github.com/tonypags/PwShMediaTools.git
+
+        # import and run on some video file you have somewhere...
+        ipmo PwShMediaTools
+        (dir ~/Movies/*.mp4)[0] | Get-MediaInfo -ov info
+
+        # Inspect the object
+        $info.General
+        $info.Video
+        $info.Audio
 
 <br>
 
