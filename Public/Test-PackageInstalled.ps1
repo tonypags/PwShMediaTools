@@ -18,7 +18,7 @@ function Test-PackageInstalled {
 
             '^brew$|^homebrew$'  {
 
-                $resp = (brew config) -like 'HOMEBREW_VERSION*'
+                $resp = (brew config) -like 'HOMEBREW_VERSION*' | Where-Object {$_}
                 [PSCustomObject]@{
                     Package   = 'homebrew'
                     Installed = ( -not [string]::IsNullOrWhiteSpace($resp) )
