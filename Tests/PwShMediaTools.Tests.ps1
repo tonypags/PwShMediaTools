@@ -13,10 +13,12 @@ Describe 'PwShMediaTools Tests' {
 
     Context 'Test PwShMediaTools Functions' {
 
-        It 'Valid Value (sample test)' {
-            $Valid = 'Valid'
-            $Valid | Should -Be $Valid
-        }
+        # It 'Gets bitrate and duration from a media file' {
+        #     # NEED TO MOCK A FILE FOR mediainfo APP
+        #     # $Valid = Get-Item | Get-MediaInfo
+        #     # $Valid.bitrate | Should -Not -BeNullOrEmpty
+        #     # $Valid.duration | Should -Not -BeNullOrEmpty
+        # }
 
     }
 
