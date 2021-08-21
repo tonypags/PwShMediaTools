@@ -8,7 +8,8 @@ function Test-PackageInstalled {
         $Package
     )
 
-    $verSBlock = {param($str=$resp)[regex]::Match($str,'([\d\.]+)').Groups[1].Value}
+    $ptn = '([\d\.]+)'
+    $verSBlock = { param($str) [regex]::Match($str,$ptn).Groups[1].Value }
 
     foreach ($app in $Package) {
 
@@ -19,40 +20,54 @@ function Test-PackageInstalled {
             '^brew$|^homebrew$'  {
 
                 $resp = (brew config) -like 'HOMEBREW_VERSION*' | Where-Object {$_}
-                [PSCustomObject]@{
+                $installed = -not [string]::IsNullOrWhiteSpace($resp)
+
+                $props = @{
                     Package   = 'homebrew'
                     Installed = ( -not [string]::IsNullOrWhiteSpace($resp) )
-                    Version = [version](Invoke-Command $verSBlock -arg $resp)
                     #[version]($resp -replace '^HOMEBREW_VERSION:\s')
                 }
- 
+                if ($installed) {$props.Add('Version',(
+                    [version](Invoke-Command $verSBlock -arg $resp)
+                ))}
+                [PSCustomObject]$props
+            
             }
 
             '^apt$|^apt-get$'    {
 
                 $resp = (apt --version)
+                $installed = -not [string]::IsNullOrWhiteSpace($resp)
 
-                [PSCustomObject]@{
+                $props = @{
                     Package   = 'apt'
-                    Installed = ( -not [string]::IsNullOrWhiteSpace($resp) )
-                    Version = [version](Invoke-Command $verSBlock -arg $resp)
+                    Installed = $installed
                     #[version]($resp -replace '^HOMEBREW_VERSION:\s')
                     # [version](
                     #     $resp verSBlock -replace '^apt\s' -replace '\s[\s\(\)\w\d]$'
                     # )
                 }
+                if ($installed) {$props.Add('Version',(
+                    [version](Invoke-Command $verSBlock -arg $resp)
+                ))}
+                [PSCustomObject]$props
                 
             }
 
             '^yum$'    {
 
                 $resp = (yum --version)[0]
+                $installed = -not [string]::IsNullOrWhiteSpace($resp)
 
-                [PSCustomObject]@{
+                $props = @{
                     Package   = 'yum'
-                    Installed = ( -not [string]::IsNullOrWhiteSpace($resp) )
-                    Version = [version]$resp
+                    Installed = $installed
+                    # Version = [version]$resp
                 }
+                if ($installed) {$props.Add('Version',(
+                    [version](Invoke-Command $verSBlock -arg $resp)
+                ))}
+                [PSCustomObject]$props
 
             }
  
@@ -71,12 +86,16 @@ function Test-PackageInstalled {
                     } else {
                         throw "Homebrew package manager is not installed!"
                     }
+                    $installed = -not [string]::IsNullOrWhiteSpace($resp)
 
-                    [PSCustomObject]@{
+                    $props = @{
                         Package   = $app.ToLower()
-                        Installed = ( -not [string]::IsNullOrWhiteSpace($resp) )
-                        Version = [version](Invoke-Command $verSBlock -arg $resp)
+                        Installed = $installed
                     }
+                    if ($installed) {$props.Add('Version',(
+                        [version](Invoke-Command $verSBlock -arg $resp)
+                    ))}
+                    [PSCustomObject]$props
 
                 } elseif ($IsLinux) {
 
@@ -92,12 +111,20 @@ function Test-PackageInstalled {
                     } else {
                         throw "Unhandled package manager: $($app)"
                     }
+                    $installed = -not [string]::IsNullOrWhiteSpace($resp)
 
-                    [PSCustomObject]@{
+                    $props = @{
                         Package   = $app.ToLower()
-                        Installed = ( [string]::IsNullOrWhiteSpace($resp) )
-                        Version = [version](Invoke-Command $verSBlock -arg $resp)
+                        Installed = $installed
+                        #[version]($resp -replace '^HOMEBREW_VERSION:\s')
+                        # [version](
+                        #     $resp verSBlock -replace '^apt\s' -replace '\s[\s\(\)\w\d]$'
+                        # )
                     }
+                    if ($installed) {$props.Add('Version',(
+                        [version](Invoke-Command $verSBlock -arg $resp)
+                    ))}
+                    [PSCustomObject]$props
                     
                 } else {
                     Write-Error "Unhandled OS: $(uname)" -ea 'Continue'
