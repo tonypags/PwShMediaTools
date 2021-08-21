@@ -40,23 +40,26 @@ function Get-MediaInfo {
         
         foreach ($file in $Path) {
 
-            $rawResponse = mediainfo $file | Out-String
+            $rawResponse = (mediainfo $file | Out-String) -split "`n"
 
             foreach ($line in $rawResponse) {
 
-                if ([string]::IsNullOrWhiteSpace($line)) {continue} else {
+                if ([string]::IsNullOrWhiteSpace($line)) {} else {
 
                     Try {
                         
                         # Capture property or handle various conditions below
-                        $thisHash = $line | ConvertFrom-StringData -ea Stop + $thisHash
+                        $strDateProps = @{
+                            Delimiter = ':'
+                            ErrorAction = 'Stop'
+                            StringData = $line
+                        }
+                        $thisHash = (ConvertFrom-StringData @strDateProps) + $thisHash
 
                     } Catch {
 
-                        if (
-                            -not [string]::IsNullOrWhiteSpace($line) -and
-                            $_ -like "*is not in 'name=value' format.*"
-                        ) {
+                        if ($_ -like "*is not in 'name=value' format.*") {
+
                             # This is a section Header
                             # First commit/nest the existing hash
                             if ($thisSection) {
@@ -66,7 +69,6 @@ function Get-MediaInfo {
                             # Then start a new section
                             $thisSection = $line.Trim()
                             $thisHash = @{}
-                            continue
 
                         }
 
