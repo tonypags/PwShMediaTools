@@ -15,31 +15,12 @@ Tools for processing media files and their details.
         git clone $uri
 
 
-    You need to have a supported package manager (apt or yum on Linux, or homebrew on your Mac).
-
-        # For Mac
-        brew install mediainfo
-
-        # for debian/ubuntu
-        apt-get install mediainfo -y
-
-        # for CentOS/RHEL
-        yum install mediainfo
-
-
     Then you have to load the module
 
-        # go to modules path in user scope
-        cd ($env:PSModulePath -split ':|;|,')[0]
-
-        # Clone my repo
-        git clone git@github.com:tonypags/PwShMediaTools.git
-        # or
-        git clone https://github.com/tonypags/PwShMediaTools.git
-
-        # import and run on some video file you have somewhere...
         ipmo PwShMediaTools
-        (dir ~/Movies/*.mp4)[0] | Get-MediaInfo -ov info
+
+        # Run on some video file you have somewhere...
+        @(dir ~/Movies/*.mp4)[0] | Get-MediaInfo -ov info
 
         # Inspect the object
         $info.General
@@ -56,13 +37,27 @@ Tools for processing media files and their details.
 
     This module has the following Software Dependancies:
     
-        sudo apt-get install ffmpeg mediainfo #(or similar pkg mgr command)
+    You need to have a supported package manager (apt or yum on Linux, or homebrew on your Mac).
+
+    For MacOS
+
+        brew install mediainfo
+
+    For Debian/Ubuntu
+
+        sudo apt-get install mediainfo -y
+
+    For CentOS/RHEL
+
+        sudo yum install mediainfo -y
+
 
 <br>
 
 3.	Version History
 
     - v0.1.0.1 - Initial Commit.
+    - v0.1.1.3 - Working version.
 
 <br>
 
