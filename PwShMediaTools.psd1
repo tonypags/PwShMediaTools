@@ -12,10 +12,10 @@
 RootModule = 'PwShMediaTools.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.1.0.1'
+ModuleVersion = '0.1.1.3'
 
 # Supported PSEditions
-# CompatiblePSEditions = @()
+CompatiblePSEditions = @('core')
 
 # ID used to uniquely identify this module
 GUID = 'c54c5897-4762-4ef9-a19c-d120897014e5'
@@ -24,7 +24,7 @@ GUID = 'c54c5897-4762-4ef9-a19c-d120897014e5'
 Author = 'Tony Pagliaro'
 
 # Company or vendor of this module
-CompanyName = 'Unknown'
+# CompanyName = 'Unknown'
 
 # Copyright statement for this module
 Copyright = '(c) Tony Pagliaro. All rights reserved.'
@@ -129,5 +129,3 @@ PrivateData = @{
 # DefaultCommandPrefix = ''
 
 }
-
-
