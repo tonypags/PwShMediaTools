@@ -1,6 +1,8 @@
 Describe 'PwShMediaTools Tests' {
 
     Import-Module "PwShMediaTools" -ea 0 -Force
+    # $Parent = Split-Path (
+    #     Get-Module PwShMediaTools -ListAvailable).Path -Parent
 
     Context 'Test Module import' {
 
@@ -13,12 +15,22 @@ Describe 'PwShMediaTools Tests' {
 
     Context 'Test PwShMediaTools Functions' {
 
-        # It 'Gets bitrate and duration from a media file' {
-        #     # NEED TO MOCK A FILE FOR mediainfo APP
-        #     # $Valid = Get-Item | Get-MediaInfo
-        #     # $Valid.bitrate | Should -Not -BeNullOrEmpty
-        #     # $Valid.duration | Should -Not -BeNullOrEmpty
+        # # (mediainfo $file | Out-String) -split "`n"
+        # Mock mediainfo {
+        #     $samplePath = Join-Path $Parent 'lib' 'Get-MediaInfo.sample.data'
+        #     $sampleData = Get-Content $samplePath -Raw
+        #     return $sampleData
         # }
+
+        It 'Gets mediainfo version' {
+            $obj = Test-PackageInstalled 'mediainfo'
+            $obj.Version | Should -BeOfType [version]
+        }
+
+        It 'Gets file size from a file' {
+            $Valid = Get-Item $PSCommandPath | Get-MediaInfo
+            $Valid.General.'File Size' | Should -Not -BeNullOrEmpty
+        }
 
     }
 
