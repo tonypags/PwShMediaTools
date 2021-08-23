@@ -19,7 +19,6 @@ function Get-MediaInfo {
             ValueFromPipelineByPropertyName
         )]
         [ValidateScript({Test-Path $_})]
-        [System.IO.FileInfo[]]
         [string[]]
         $Path
     )
