@@ -21,7 +21,10 @@ function Get-MediaInfo {
         [ValidateScript({Test-Path $_})]
         [System.IO.FileInfo[]]
         [string[]]
-        $Path
+        $Path,
+
+        [switch]$Bitrate
+
     )
     
     begin {
@@ -82,7 +85,15 @@ function Get-MediaInfo {
             
         }#END: foreach ($file in $Path) {}
 
-        [pscustomobject]$SectionHeaders
+        if ($Bitrate.IsPresent) {
+
+            ([pscustomobject]$SectionHeaders.General.'Overall bit Rate' -replace '[^\d]') -as [int]
+
+        } else {
+
+            [pscustomobject]$SectionHeaders
+
+        }
 
     }#END: process {}
     
