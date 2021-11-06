@@ -43,37 +43,93 @@ function Get-MediaInfo {
 
             foreach ($line in $rawResponse) {
 
+                # Ignore lines without content
                 if ([string]::IsNullOrWhiteSpace($line)) {} else {
 
                     Try {
                         
-                        # Capture property or handle various conditions below
+                        # Convert the key:value string to a hash entry
                         $strDateProps = @{
                             Delimiter = ':'
                             ErrorAction = 'Stop'
                             StringData = $line
                         }
-                        $thisHash = (ConvertFrom-StringData @strDateProps) + $thisHash
+                        $rawKeyValue = ConvertFrom-StringData @strDateProps
+                        $key = $rawKeyValue.keys
+                        $rawValue = $rawKeyValue[$key]
+
+                        $value = @{}
+                        # Detect data types
+                        $value.$key = switch -Regex ($rawValue) {
+                            
+                            # Timespans
+                            '\d\d?\smin\s\d\d?\ss' {
+                                $mins = [regex]::Match($rawValue,'(d\d?)\smin').Groups[1].Value
+                                $secs = [regex]::Match($rawValue,'(\d\d?)\ss').Groups[1].Value
+                                $props = @{
+                                    Minutes = [int]$mins
+                                    Seconds = [int]$secs
+                                }
+                                New-Timespan $props
+                                break
+                            }
+
+                            # Bitrates
+                            '\d+\sk?m?b\/s' {
+                                ($rawValue -replace '[^\d]') -as [int]
+                                break
+                            }
+
+                            # Size/px
+                            '\d+\spixels' {
+                                ($rawValue -replace '[^\d]') -as [int]
+                                break
+                            }
+
+                            # Bit depth
+                            '\d+\sbit' {
+                                ($rawValue -replace '[^\d]') -as [int]                                
+                                break
+                            }
+
+                            # Doubles
+                            '^\d+\.\d+$' {
+                                [double]$rawValue
+                                break
+                            }
+
+                            # Integers
+                            '^\d+$' {
+                                [int]$rawValue
+                                break
+                            }
+
+                            Default { $rawValue }
+
+                        }#END: switch
+
+                        # Add to Section hash variable
+                        $thisHash = $value + $thisHash
 
                     } Catch {
 
+                        # Section headers do not have a Key:Value string and will throw
                         if ($_ -like "*is not in 'name=value' format.*") {
 
-                            # This is a section Header
-                            # First commit/nest the existing hash
+                            # First commit/nest an existing hash
                             if ($thisSection) {
                                 $SectionHeaders.Add($thisSection, [pscustomobject]$thisHash)
                             }
 
-                            # Then start a new section
-                            $thisSection = $line.Trim()
-                            $thisHash = @{}
+                            # Then (re-)initialize variables for a new section
+                            $thisSection = $line.Trim() # Hash key is Header
+                            $thisHash = @{} # Empty Nested hash for the next loop
 
                         }
 
                     }
 
-                }#END: if ([string]::IsNullOrWhiteSpace($line)) {continue} else {}
+                }#END: Ignore lines without content
 
             }#END: foreach ($line in $rawResponse) {}
 
