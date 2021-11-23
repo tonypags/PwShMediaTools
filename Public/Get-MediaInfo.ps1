@@ -36,6 +36,12 @@ function Get-MediaInfo {
         $SectionHeaders = @{}
         $thisSection = ''
 
+        $strDateProps = @{
+            Delimiter = ':'
+            ErrorAction = 'Stop'
+            StringData = $null
+        }
+
     }
     
     process {
@@ -50,69 +56,82 @@ function Get-MediaInfo {
                 if ([string]::IsNullOrWhiteSpace($line)) {} else {
 
                     Try {
-                        
-                        # Convert the key:value string to a hash entry
-                        $strDateProps = @{
-                            Delimiter = ':'
-                            ErrorAction = 'Stop'
-                            StringData = $line
-                        }
-                        $rawKeyValue = ConvertFrom-StringData @strDateProps
-                        $key = $rawKeyValue.keys
-                        $rawValue = $rawKeyValue[$key]
 
-                        $value = @{}
+                        # Convert the key:value string to a hash entry
+                        $strDateProps.StringData = $line
+                        $rawKeyValue = ConvertFrom-StringData @strDateProps
+                        $key = @($rawKeyValue.keys)[0]
+                        $rawValue = $rawKeyValue[$key].Trim()
+
                         # Detect data types
-                        $value.$key = switch -Regex ($rawValue) {
-                            
-                            # Timespans
-                            '\d\d?\smin\s\d\d?\ss' {
+                        switch -Regex ($rawValue) {
+                            '\d\d?\smin\s\d\d?\ss' { # Timespans
                                 $mins = [regex]::Match($rawValue,'(d\d?)\smin').Groups[1].Value
                                 $secs = [regex]::Match($rawValue,'(\d\d?)\ss').Groups[1].Value
                                 $props = @{
                                     Minutes = [int]$mins
                                     Seconds = [int]$secs
                                 }
-                                New-Timespan $props
+                                $value = New-Timespan $props
+                                $key = "$Key"
                                 break
                             }
-
-                            # Bitrates
-                            '\d+\sk?m?b\/s' {
-                                ($rawValue -replace '[^\d]') -as [int]
+                            '\d+\smb\/s' { # Bitrates Mbps
+                                $value = ($rawValue -replace '[^\d]') -as [int]
+                                $key = "$Key (Mbps)"
                                 break
                             }
-
-                            # Size/px
-                            '\d+\spixels' {
-                                ($rawValue -replace '[^\d]') -as [int]
+                            '\d+\skb\/s' { # Bitrates Kbps
+                                $value = ($rawValue -replace '[^\d]') -as [int]
+                                $key = "$Key (kbps)"
                                 break
                             }
-
-                            # Bit depth
-                            '\d+\sbit' {
-                                ($rawValue -replace '[^\d]') -as [int]                                
+                            '\d+\spixels' { # Size/px
+                                $value = ($rawValue -replace '[^\d]') -as [int]
+                                $key = "$Key"
                                 break
                             }
-
-                            # Doubles
-                            '^\d+\.\d+$' {
-                                [double]$rawValue
+                            '\d+\sbit' { # Bit depth
+                                $value = ($rawValue -replace '[^\d]') -as [int]                                
+                                $key = "$Key"
                                 break
                             }
-
-                            # Integers
-                            '^\d+$' {
-                                [int]$rawValue
+                            '^\d+\.\d+$' { # Doubles
+                                $value = [double]$rawValue
+                                $key = "$Key"
                                 break
                             }
-
-                            Default { $rawValue }
-
+                            '^\d+\.\d+\sFPS.*$' { # Frame Rates (Doubles)
+                                $value = [double]($rawValue -replace '\sFPS$')
+                                $key = "$Key (FPS)"
+                                break
+                            }
+                            '^\d+\sMiB$' { # Size convert MiB to MB to B (Doubles)
+                                $value = [int]($rawValue -replace '\sMiB$')*
+                                [math]::Pow(2,20)/[math]::Pow(10,6)*1MB
+                                $key = "$Key"
+                                break
+                            }
+                            '^\d+$' { # Integers
+                                $value = [int]$rawValue
+                                $key = "$Key"
+                                break
+                            }
+                            '^\d+\schannels?$' { # channels (Integers)
+                                $value = [int]($rawValue -replace '\schannels?$')
+                                $key = "$Key"
+                                break
+                            }
+                            '^UTC\s\d{4}' { # UTC Dates
+                                $value = ($rawValue -replace 'UTC\s' -as [datetime]).ToLocalTime().ToUniversalTime()
+                                $key = "$Key (UTC)"
+                                break
+                            }
+                            Default { $value = $rawValue }
                         }#END: switch
 
                         # Add to Section hash variable
-                        $thisHash = $value + $thisHash
+                        $thisHash.$key = $value
 
                     } Catch {
 
@@ -120,13 +139,13 @@ function Get-MediaInfo {
                         if ($_ -like "*is not in 'name=value' format.*") {
 
                             # First commit/nest an existing hash
-                            if ($thisSection) {
+                            if ($thisSection) { # Runs every time except the first time thru loop
                                 $SectionHeaders.Add($thisSection, [pscustomobject]$thisHash)
                             }
 
                             # Then (re-)initialize variables for a new section
                             $thisSection = $line.Trim() # Hash key is Header
-                            $thisHash = @{} # Empty Nested hash for the next loop
+                            $thisHash = [ordered]@{} # Empty Nested hash for the next loop
 
                         }
 
@@ -136,7 +155,7 @@ function Get-MediaInfo {
 
             }#END: foreach ($line in $rawResponse) {}
 
-            $SectionHeaders.Add($thisSection, [pscustomobject]$thisHash)
+            # $SectionHeaders.Add($thisSection, [pscustomobject]$thisHash)
             
         }#END: foreach ($file in $Path) {}
 
