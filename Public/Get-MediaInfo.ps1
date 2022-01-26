@@ -65,14 +65,15 @@ function Get-MediaInfo {
 
                         # Detect data types
                         switch -Regex ($rawValue) {
-                            '\d\d?\s+?min\s+?\d\d?\s+?s' { # Timespans
-                                $mins = [regex]::Match($rawValue,'(d\d?)\smin').Groups[1].Value
-                                $secs = [regex]::Match($rawValue,'(\d\d?)\ss').Groups[1].Value
+                            '\d\d?\s+?mins?\s+?\d\d?\s+?s' { # Timespans
+
+                                $mins = [regex]::Match($rawValue,'(\d\d?)\s+?min').Groups[1].Value
+                                $secs = [regex]::Match($rawValue,'(\d\d?)\s+?s').Groups[1].Value
                                 $props = @{
                                     Minutes = [int]$mins
                                     Seconds = [int]$secs
                                 }
-                                $value = New-Timespan $props
+                                $value = New-Timespan @props
                                 $key = "$Key"
                                 break
                             }
