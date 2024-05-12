@@ -4,7 +4,16 @@
 .SYNOPSIS
 Converts high bitrate videos of any type to smaller x264 MP4. Confirms mp4 file before sending original file to the trash.
 #>
-param([int]$crf=24)
+param(
+    # higher CRF = smaller file
+    [int]$crf = 28,
+
+    # how big does a file have to be to get converted
+    [int64]$minSize = 4.5GB,
+
+    # how many TV shows to show the enduser at once
+    $maxItems = 15
+)
 
 ipmo PwshMediaTools -ea Stop
 
@@ -12,8 +21,6 @@ ipmo PwshMediaTools -ea Stop
 $base_folder  = "/garage/media/TV"
 $trash_folder  = '/garage/transients/trash'
 $chmod_recurse = "/garage/media/recurse_chmod_media.sh" # post-script to normalize owner/mode
-$maxItems = 10 # how many TV shows to show the enduser at once
-$minSize = 3.8GB # how big does a file have to be to get converted
 
 # Find top directories by size
 $i = 0
@@ -22,6 +29,7 @@ Write-Host 'inspecting show sizes..' -NoNewLine
 $sizedFolders = foreach ($show in $allFolders) {
     $i++
     $kids = Get-ChildItem $show.FullName -File -Recurse | Where-Object Length -gt $minSize
+    if ($null -eq $kids) {continue}
     $size = $kids | Measure-Object -Property Length -Sum | % Sum
     [PsCustomObject]@{
         '#' = $i
@@ -42,17 +50,18 @@ do {
     Write-Host "`nChoose a TV Show to Compress/Trash"
     Write-Host ($bigFolders | Ft -a | out-string)
     [int]$entry = Read-Host "Choose any of these (enter #, Enter/0 to abort)"
+    if ($entry) {} else {return}
     $choice = $bigFolders | ? '#' -eq $entry
     $yn = Read-Host "Compress $($choice.Files) episodes of $($choice.Show) (y/N)?"
 
 } while ($yn -notmatch 'y*')
 
-Push-Location
-
 $kids = Get-ChildItem $choice.FullName -File -Recurse | Where-Object Length -gt $minSize
 Write-Host ($kids | Ft -a | out-string)
 $yn = Read-Host "Are you sure you want to compress these files @CRF $crf and trash them (y/N)?"
 if ($yn -notlike 'y*') {return}
+
+Push-Location
 
 # for each item, convert it, confirm it, touch old item, move it to trash
 $i = 0
