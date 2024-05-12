@@ -28,7 +28,7 @@ $allFolders = Get-ChildItem $base_folder -Directory
 Write-Host 'inspecting show sizes..' -NoNewLine
 $sizedFolders = foreach ($show in $allFolders) {
     $i++
-    $kids = Get-ChildItem $show.FullName -File -Recurse | Where-Object Length -gt $minSize
+    $kids = Get-ChildItem (Escape-Path -Path $show.FullName) -File -Recurse | Where-Object Length -gt $minSize
     if ($null -eq $kids) {continue}
     $size = $kids | Measure-Object -Property Length -Sum | % Sum
     [PsCustomObject]@{
@@ -56,7 +56,7 @@ do {
 
 } while ($yn -notmatch 'y*')
 
-$kids = Get-ChildItem $choice.FullName -File -Recurse | Where-Object Length -gt $minSize
+$kids = Get-ChildItem (Escape-Path -Path $choice.FullName) -Recurse | Where-Object Length -gt $minSize
 Write-Host ($kids | Ft -a | out-string)
 $yn = Read-Host "Are you sure you want to compress these files @CRF $crf and trash them (y/N)?"
 if ($yn -notlike 'y*') {return}
@@ -70,17 +70,17 @@ foreach ($item in $kids) {
     $i++
 
     Write-Host "Converting Episode" -NoNewLine ; Write-Host " [$($i) of $($choice.Files)]: $($item.Name)`n" -f Green
-    cd "$($item.Directory)"
+    cd "$(Escape-Path -Path $item.Directory)"
 
     # convert it
-    $newName = "$($item.Basename).mp4"
-    $cmd = "ffmpeg -i `"$($item.Name -replace '"','`"')`" -v quiet -stats -crf $crf `"$($newName -replace '"','`"')`""
+    $newName = "$(Escape-Path -Path $item.Basename).mp4"
+    $cmd = "ffmpeg -i `"$(Escape-Path -Path $item.Name)`" -v quiet -stats -crf $crf `"$(Escape-Path -Path $newName)`""
     Write-Host "Running this: $cmd `n"
     Invoke-Expression $cmd
 
     # confirm it
-    $oldMeta = Get-MediaInfo "$($item.Name)" | % General
-    $newMeta = Get-MediaInfo "$($newName)" -ea 0 | % General
+    $oldMeta = Get-MediaInfo "$(Escape-Path -Path $item.Name)" | % General
+    $newMeta = Get-MediaInfo "$(Escape-Path -Path $newName)" -ea 0 | % General
 
     $bitDiff = $oldMeta.'Overall bit rate (kbps)' - $newMeta.'Overall bit rate (kbps)'
     $bitPct = $bitDiff / $oldMeta.'Overall bit rate (kbps)' * 100 -as [int]
@@ -100,8 +100,8 @@ foreach ($item in $kids) {
     } elseif ($durDiffSeconds -le 1) {
 
         # touch and trash it
-        touch "$($item.Name -replace '"','`"')"
-        mv "$($item.Name -replace '"','`"')" "$trash_folder"
+        touch "$(Escape-Path -Path $item.Name)"
+        mv "$(Escape-Path -Path $item.Name)" "$trash_folder"
         Write-Host "Trashed file:" -NoNewLine ; Write-Host " $($item.Name)" -f Yellow
 
     } else {

@@ -19,26 +19,33 @@ $dirGroup = $flacFiles | Group-Object Directory -NoElement
 # Tally up the file sizes in each folder
 $i = 0
 $FolderSizes = [System.Collections.ArrayList]@()
-foreach ($parent in $dirGroup.Name) {
-    
+$albumsToRename = [System.Collections.ArrayList]@()
+foreach ($album in $dirGroup) {
+
     $i++
-    $theseSongs = Get-ChildItem "$parent/*.flac"
+    # if ($album.Name -match '\[') {$albumsToRename.Add($album) ; continue}
+    $theseSongs = Get-ChildItem "$(Escape-Path -Path $album.Name)" -Recurse | ? Extension -eq '.flac'
+    # Wait-Debugger;return # temp debug
     $thisMeasure = $theseSongs | Measure-Object -Property Length -Sum
     $thisSize = $thisMeasure | % Sum
     [void] $FolderSizes.Add(
         [PsCustomObject]@{
             '#' = $i
             Size = "$([math]::Round(($thisSize / 1MB)))M"
-            Album = (Split-Path $parent -Leaf)
-            Path = $parent
+            Album = (Split-Path $album.Name -Leaf)
+            Path = $album.Name
             Bytes = $thisSize
         }
     )
+    # break # temp debug
     Start-Sleep -milli 100
 }
 
-# wait-debugger
-# return
+if ($albumsToRename) {
+    Write-Host -f Red "Albums to rename:`n$(
+        ($albumsToRename.Name | % {$_ -replace '^\/garage\/media\/Music\/'}) -join "`n"
+    )"
+}
 
 # Display the top 10 items and ask to exclude any
 $topTen = $FolderSizes|? bytes -gt 0 |sort-object bytes -desc | select-object -first 10
@@ -66,7 +73,7 @@ $iAlbum = 0
 foreach ($item in $topTen) {
     $iAlbum++
 
-    cd "$($item.Path)"
+    cd "$(Escape-Path -Path $item.Path)"
     Write-Host "$('=' * $host.UI.RawUI.WindowSize.Width)`n
     `nConverting Album" -NoNewLine ; Write-Host " [$($iAlbum) of $($totalAlbums)]: $($item.Album)`n" -f Green
 
@@ -78,23 +85,23 @@ foreach ($item in $topTen) {
         $iSong++
 
         # convert it
-        $newName = "$($song.Basename).m4a"
-        $cmd = "ffmpeg -i `"$($song.Name -replace '"','`"')`" -v quiet -stats -vsync 0 `"$($newName -replace '"','`"')`""
+        $newName = "$(Escape-Path -Path $song.Basename).m4a"
+        $cmd = "ffmpeg -i `"$(Escape-Path -Path $song.Name)`" -v quiet -stats -vsync 0 `"$($newName -replace '"','`"')`""
         Write-Host "`nConverting Song " -NoNewLine ; Write-Host " [$($iSong) of $($totalSongs)]: $($song.Name)" -f Cyan
         Write-Host "Running this: $cmd `n"
         Invoke-Expression $cmd
 
         # confirm it
-        $oldMeta = Get-MediaInfo "$($song.Name)" | % General
-        $newMeta = Get-MediaInfo "$($newName)" | % General
+        $oldMeta = Get-MediaInfo "$(Escape-Path -Path $song.Name)" | % General
+        $newMeta = Get-MediaInfo "$(Escape-Path -Path $newName)" | % General
         $durDiff = $oldMeta.Duration.TotalSeconds - $newMeta.Duration.TotalSeconds
         $durDiffSeconds = [math]::Abs($durDiff)
 
         if ($durDiffSeconds -le 1) {
 
             # touch and trash it
-            touch "$($song.Name -replace '"','`"')"
-            mv "$($song.Name -replace '"','`"')" "$trash_folder"
+            touch "$(Escape-Path -Path $song.Name)"
+            mv "$(Escape-Path -Path $song.Name)" "$trash_folder"
             Write-Host "Trashed file:" -NoNewLine ; Write-Host " $($song.Name)" -f Yellow
 
         } else {
