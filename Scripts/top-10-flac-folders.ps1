@@ -81,7 +81,7 @@ foreach ($item in $topTen) {
         $newName = "$($song.Basename).m4a"
         $cmd = "ffmpeg -i `"$($song.Name -replace '"','`"')`" -v quiet -stats -vsync 0 `"$($newName -replace '"','`"')`""
         Write-Host "`nConverting Song " -NoNewLine ; Write-Host " [$($iSong) of $($totalSongs)]: $($song.Name)" -f Cyan
-        Write-Host "Running this:" -NoNewLine ; Write-Host " $cmd `n"
+        Write-Host "Running this: $cmd `n"
         Invoke-Expression $cmd
 
         # confirm it
