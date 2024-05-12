@@ -56,6 +56,7 @@ if ($yn -notlike 'y*') {return}
 
 # for each item, convert it, confirm it, touch old item, move it to trash
 $i = 0
+$totalGbSaved = 0
 foreach ($item in $kids) {
     $i++
 
@@ -71,9 +72,19 @@ foreach ($item in $kids) {
     # confirm it
     $oldMeta = Get-MediaInfo "$($item.Name)" | % General
     $newMeta = Get-MediaInfo "$($newName)" -ea 0 | % General
+
+    $bitDiff = $oldMeta.'Overall bit rate (kbps)' - $newMeta.'Overall bit rate (kbps)'
+    $bitPct = $bitDiff / $oldMeta.'Overall bit rate (kbps)' * 100 -as [int]
+    Write-Host "Bitrate lowered" -NoNewLine ; Write-Host " $($bitPct)% from $($oldMeta.'Overall bit rate (kbps)')k to $($newMeta.'Overall bit rate (kbps)')k" -f Yellow
+
+    $sizeDiff = $oldMeta.'File size' - $newMeta.'File size'
+    $sizeDiffGB = [math]::Round(($sizeDiff/1GB),2)
+    $totalGbSaved += $sizeDiffGB
+    $sizePct = $sizeDiff / $oldMeta.'File size' * 100 -as [int]
+    Write-Host "File size lowered" -NoNewLine ; Write-Host " $($sizePct)% or $($sizeDiffGB)GB" -f Yellow
+
     $durDiff = $oldMeta.Duration.TotalSeconds - $newMeta.Duration.TotalSeconds
     $durDiffSeconds = [math]::Abs($durDiff)
-
     if ($null -eq $newMeta) {
         Write-Host "Conversion Failed! $($item.Name)" -f Red
 
@@ -89,6 +100,7 @@ foreach ($item in $kids) {
         Write-Host "Duration mismatch! $($item.Name)" -f Red
     }
 }
+Write-Host "Total space saved: " -NoNewLine ; Write-Host "$($totalGbSaved)GB" -f Green
 
 Pop-Location
 
