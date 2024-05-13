@@ -32,6 +32,22 @@ Describe 'PwShMediaTools Tests' {
             $Valid.General.'File Size' | Should -Not -BeNullOrEmpty
         }
 
+        It 'Handles any escape string scenario' {
+            $set = @{
+                'Item in (Parentheses)' = 'Item in ``(Parentheses``)'
+                'Item in [Square Brackets]' = 'Item in ``[Square Brackets]`)'
+                'Item in "Double Quotes"' = 'Item in `"Double Quotes`"'
+                "Item in 'Single Quotes'" = "Item in 'Single Quotes'"
+                'Item in “Curly Double Quotes”' = 'Item in `“Curly Double Quotes`”'
+                "It’s a Single Quote" = "It’s a Single Quote"
+            }
+
+            foreach ($key in $set.Keys) {
+                Get-EscapedPathForDoubleQuotes -Path $key | Should -Be $set.$key
+            }
+
+        }
+
     }
 
 }
