@@ -18,7 +18,10 @@ function Get-MediaInfo {
             ValueFromPipeline,
             ValueFromPipelineByPropertyName
         )]
-        [ValidateScript({Test-Path $_})]
+        [ValidateScript({
+            (Test-Path $_) -or
+            -not [string]::IsNullOrWhiteSpace((ls "$_"))
+        })]
         [string[]]
         $Path,
 
@@ -36,6 +39,12 @@ function Get-MediaInfo {
         $SectionHeaders = @{}
         $thisSection = ''
 
+        $strDateProps = @{
+            Delimiter = ':'
+            ErrorAction = 'Stop'
+            StringData = $null
+        }
+
     }
     
     process {
@@ -46,42 +55,113 @@ function Get-MediaInfo {
 
             foreach ($line in $rawResponse) {
 
+                # Ignore lines without content
                 if ([string]::IsNullOrWhiteSpace($line)) {} else {
 
                     Try {
-                        
-                        # Capture property or handle various conditions below
-                        $strDateProps = @{
-                            Delimiter = ':'
-                            ErrorAction = 'Stop'
-                            StringData = $line
-                        }
-                        $thisHash = (ConvertFrom-StringData @strDateProps) + $thisHash
+
+                        # Convert the key:value string to a hash entry
+                        $strDateProps.StringData = $line
+                        $rawKeyValue = ConvertFrom-StringData @strDateProps
+                        $key = @($rawKeyValue.keys)[0]
+                        $rawValue = $rawKeyValue[$key].Trim()
+
+                        # Detect data types
+                        switch -Regex ($rawValue) {
+                            '\d+?\s+?[m|min|h|hr|hour|s|sec]' { # Timespans
+
+                                $hrs  = [regex]::Match($rawValue,'(\d\d?)\s+?ho?u?r?s?').Groups[1].Value
+                                $mins = [regex]::Match($rawValue,'(\d\d?)\s+?min').Groups[1].Value
+                                $secs = [regex]::Match($rawValue,'(\d\d?)\s+?s').Groups[1].Value
+                                $props = @{}
+                                if ($hrs) {$props.Hours = [int]$hrs}
+                                if ($mins) {$props.Minutes = [int]$mins}
+                                if ($secs) {$props.Seconds = [int]$secs}
+                                $value = New-Timespan @props
+                                $key = "$Key"
+                                break
+                            }
+                            '\d+\smb\/s' { # Bitrates Mbps
+                                $value = ($rawValue -replace '[^\d]') -as [int]
+                                $key = "$Key (Mbps)"
+                                break
+                            }
+                            '\d+\skb\/s' { # Bitrates Kbps
+                                $value = ($rawValue -replace '[^\d]') -as [int]
+                                $key = "$Key (kbps)"
+                                break
+                            }
+                            '\d+\spixels' { # Size/px
+                                $value = ($rawValue -replace '[^\d]') -as [int]
+                                $key = "$Key"
+                                break
+                            }
+                            '\d+\sbit' { # Bit depth
+                                $value = ($rawValue -replace '[^\d]') -as [int]                                
+                                $key = "$Key"
+                                break
+                            }
+                            '^\d+\.\d+$' { # Doubles
+                                $value = [double]$rawValue
+                                $key = "$Key"
+                                break
+                            }
+                            '^\d+\.\d+\sFPS.*$' { # Frame Rates (Doubles)
+                                $value = [double]($rawValue -replace '\sFPS$')
+                                $key = "$Key (FPS)"
+                                break
+                            }
+                            '^\d+\sMiB$' { # Size convert MiB to MB to B (Doubles)
+                                $value = [int]($rawValue -replace '\sMiB$')*
+                                [math]::Pow(2,20)/[math]::Pow(10,6)*1MB
+                                $key = "$Key"
+                                break
+                            }
+                            '^\d+$' { # Integers
+                                $value = [int]$rawValue
+                                $key = "$Key"
+                                break
+                            }
+                            '^\d+\schannels?$' { # channels (Integers)
+                                $value = [int]($rawValue -replace '\schannels?$')
+                                $key = "$Key"
+                                break
+                            }
+                            '^UTC\s\d{4}' { # UTC Dates
+                                $value = ($rawValue -replace 'UTC\s' -as [datetime]).ToLocalTime().ToUniversalTime()
+                                $key = "$Key (UTC)"
+                                break
+                            }
+                            Default { $value = $rawValue }
+                        }#END: switch
+
+                        # Add to Section hash variable
+                        $thisHash.$key = $value
 
                     } Catch {
 
+                        # Section headers do not have a Key:Value string and will throw
                         if ($_ -like "*is not in 'name=value' format.*") {
 
-                            # This is a section Header
-                            # First commit/nest the existing hash
-                            if ($thisSection) {
+                            # First commit/nest an existing hash
+                            if ($thisSection) { # Runs every time except the first time thru loop
                                 $SectionHeaders.Add($thisSection, [pscustomobject]$thisHash)
                             }
 
-                            # Then start a new section
-                            $thisSection = $line.Trim()
-                            $thisHash = @{}
+                            # Then (re-)initialize variables for a new section
+                            $thisSection = $line.Trim() # Hash key is Header
+                            $thisHash = [ordered]@{} # Empty Nested hash for the next loop
 
                         }
 
                     }
 
-                }#END: if ([string]::IsNullOrWhiteSpace($line)) {continue} else {}
+                }#END: Ignore lines without content
 
             }#END: foreach ($line in $rawResponse) {}
 
-            $SectionHeaders.Add($thisSection, [pscustomobject]$thisHash)
-            
+            # $SectionHeaders.Add($thisSection, [pscustomobject]$thisHash)
+                        
         }#END: foreach ($file in $Path) {}
 
         if ($Bitrate.IsPresent) {
