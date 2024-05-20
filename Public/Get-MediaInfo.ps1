@@ -65,30 +65,30 @@ function Get-MediaInfo {
                         $rawKeyValue = ConvertFrom-StringData @strDateProps
                         $key = @($rawKeyValue.keys)[0]
                         $rawValue = $rawKeyValue[$key].Trim()
-
+                    
                         # Detect data types
                         switch -Regex ($rawValue) {
-                            '\d+?\s+?[m|min|h|hr|hour|s|sec]' { # Timespans
+                            '[\d\.]+\smb\/s' { # Bitrates Mbps
+                                [int64]$value = ($rawValue -replace 'mb.*$' -as [double]) * 1MB
+                                $key = "$Key (bps)"
+                                break
+                            }
+                            '[\d\.]+\skb\/s' { # Bitrates Kbps
+                                [int64]$value = ($rawValue -replace 'kb.*$' -as [double]) * 1kB
+                                $key = "$Key (bps)"
+                                break
+                            }
+                            '\d+\smi?n?\s\d+\sse?c?s?|\d+\sho?u?r?s?\s\d+\smi?n?s?' { # Timespans
 
-                                $hrs  = [regex]::Match($rawValue,'(\d\d?)\s+?ho?u?r?s?').Groups[1].Value
-                                $mins = [regex]::Match($rawValue,'(\d\d?)\s+?min').Groups[1].Value
-                                $secs = [regex]::Match($rawValue,'(\d\d?)\s+?s').Groups[1].Value
+                                $hrs  = [regex]::Match($rawValue,'(\d+?)\s+?h').Groups[1].Value
+                                $mins = [regex]::Match($rawValue,'(\d+?)\s+?m').Groups[1].Value
+                                $secs = [regex]::Match($rawValue,'(\d+?)\s+?s').Groups[1].Value
                                 $props = @{}
                                 if ($hrs) {$props.Hours = [int]$hrs}
                                 if ($mins) {$props.Minutes = [int]$mins}
                                 if ($secs) {$props.Seconds = [int]$secs}
                                 $value = New-Timespan @props
                                 $key = "$Key"
-                                break
-                            }
-                            '\d+\smb\/s' { # Bitrates Mbps
-                                $value = ($rawValue -replace '[^\d]') -as [int]
-                                $key = "$Key (Mbps)"
-                                break
-                            }
-                            '\d+\skb\/s' { # Bitrates Kbps
-                                $value = ($rawValue -replace '[^\d]') -as [int]
-                                $key = "$Key (kbps)"
                                 break
                             }
                             '\d+\spixels' { # Size/px
